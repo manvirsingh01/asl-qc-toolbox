@@ -1,4 +1,4 @@
-# 🧠 ASL QC Toolbox
+#  ASL QC Toolbox
 
 **Automated Quality Control for Arterial Spin Labeling MRI**
 
