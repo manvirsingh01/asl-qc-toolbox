@@ -1,0 +1,26 @@
+Metadata-Version: 2.4
+Name: asl-qc-toolbox
+Version: 1.0.0
+Summary: Advanced Quality Control Toolbox for Arterial Spin Labeling MRI
+Author: OSIPI Task Force 2.2
+License: MIT
+Keywords: ASL,MRI,quality-control,neuroimaging,perfusion
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Medical Science Apps.
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: nibabel>=5.0
+Requires-Dist: numpy>=1.24
+Requires-Dist: scipy>=1.10
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: SimpleITK>=2.3
+Requires-Dist: pyyaml>=6.0
+Requires-Dist: jinja2>=3.1
+Provides-Extra: plotting
+Requires-Dist: matplotlib>=3.7; extra == "plotting"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0; extra == "dev"

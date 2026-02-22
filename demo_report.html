@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASL QC Report — sub-demo</title>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --text-muted: #94a3b8;
+      --pass: #22c55e; --warn: #f59e0b; --fail: #ef4444;
+      --accent: #6366f1;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text); padding: 2rem;
+      line-height: 1.6;
+    }
+    h1 {
+      font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem;
+      background: linear-gradient(135deg, var(--accent), #a855f7);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .subtitle { color: var(--text-muted); font-size: .875rem; margin-bottom: 2rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+    }
+    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--text); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td {
+      padding: .6rem 1rem; text-align: left; border-bottom: 1px solid var(--border);
+      font-size: .875rem;
+    }
+    th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: .75rem; }
+    .badge {
+      display: inline-block; padding: .15rem .6rem; border-radius: 9999px;
+      font-size: .75rem; font-weight: 600; text-transform: uppercase;
+    }
+    .badge-pass { background: rgba(34,197,94,.15); color: var(--pass); }
+    .badge-fail { background: rgba(239,68,68,.15); color: var(--fail); }
+    .badge-warn { background: rgba(245,158,11,.15); color: var(--warn); }
+    .overall {
+      font-size: 1.25rem; font-weight: 700; text-align: center; padding: 1rem;
+      border-radius: 8px; margin-bottom: 1.5rem;
+    }
+    .overall-pass { background: rgba(34,197,94,.1); color: var(--pass); border: 1px solid var(--pass); }
+    .overall-fail { background: rgba(239,68,68,.1); color: var(--fail); border: 1px solid var(--fail); }
+    .meta { color: var(--text-muted); font-size: .75rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem; text-align: center;
+    }
+    .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: .75rem; color: var(--text-muted); margin-top: .25rem; }
+  </style>
+</head>
+<body>
+  <h1>🧠 ASL Quality Control Report</h1>
+  <p class="subtitle">Subject: sub-demo &middot; Generated: 2026-02-22T11:50:45.353899</p>
+
+  <div class="overall overall-pass">
+    ✅ OVERALL PASS
+    — 7/7 metrics passed
+  </div>
+
+  <div class="summary-grid">
+    
+    <div class="stat-card">
+      <div class="stat-val">0.725</div>
+      <div class="stat-label">QEI</div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-val">0.083</div>
+      <div class="stat-label">sCoV (GM)</div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-val">0.300 mm</div>
+      <div class="stat-label">Mean FD</div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-val">2.41</div>
+      <div class="stat-label">GM/WM Ratio</div>
+    </div>
+    
+  </div>
+
+  <div class="card">
+    <h2>Threshold Verdicts</h2>
+    <table>
+      <thead>
+        <tr><th>Metric</th><th>Value</th><th>Threshold</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td>qei</td>
+          <td>0.7249</td>
+          <td>>= 0.530</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+        <tr>
+          <td>scov_gm</td>
+          <td>0.0830</td>
+          <td><= 0.420</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+        <tr>
+          <td>mean_fd</td>
+          <td>0.3000</td>
+          <td><= 0.500</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+        <tr>
+          <td>gm_wm_ratio (min)</td>
+          <td>2.4121</td>
+          <td>>= 2.000</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+        <tr>
+          <td>gm_wm_ratio (max)</td>
+          <td>2.4121</td>
+          <td><= 3.000</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+        <tr>
+          <td>neg_gm_cbf</td>
+          <td>0.0000</td>
+          <td><= 0.100</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+        <tr>
+          <td>dice</td>
+          <td>0.8500</td>
+          <td>>= 0.700</td>
+          <td><span class="badge badge-pass">
+            PASS
+          </span></td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+
+  
+  <div class="card">
+    <h2>ML Outlier Detection</h2>
+    <table>
+      <thead><tr><th>Method</th><th>Anomaly Score</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>isolation_forest</td>
+          <td>-0.0492</td>
+          <td><span class="badge badge-fail">
+            OUTLIER
+          </span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  
+
+  <div class="card">
+    <h2>Provenance</h2>
+    <p class="meta">Toolbox: asl-qc-toolbox v1.0.0</p>
+    
+    <p class="meta">cbf_map: synthetic_cbf</p>
+    
+    <p class="meta">gm_mask: synthetic_gm</p>
+    
+  </div>
+</body>
+</html>

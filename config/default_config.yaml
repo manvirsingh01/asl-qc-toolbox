@@ -1,0 +1,85 @@
+# ASL QC Toolbox — Default Configuration
+# Override any value by passing a custom YAML via --config
+
+pipeline:
+  name: "asl-qc-toolbox"
+  version: "1.0.0"
+  verbose: true
+
+# BIDS parsing
+bids:
+  required_fields:
+    - "RepetitionTimePreparation"
+    - "LabelingType"
+    - "PostLabelingDelay"
+
+# Preprocessing
+preprocessing:
+  # Control-label pattern verification
+  control_label:
+    autocorrelation_lag: 1
+    min_pattern_amplitude: 0.005   # Minimum zig-zag amplitude (fraction of mean)
+
+  # M0 calibration assessment
+  m0:
+    max_median_ratio_threshold: 10.0   # max/median intensity ratio flag
+    smoothing_fwhm_mm: 5.0             # Gaussian smoothing FWHM
+    low_signal_fraction: 0.10          # Mask voxels below this fraction of global mean
+
+  # Motion parameters
+  motion:
+    fd_radius_mm: 50.0                 # Head radius for rotational FD conversion
+    fd_spike_threshold_mm: 0.5         # FD spike threshold
+    dvars_spike_threshold: 1.5         # DVARS z-score spike threshold
+
+  # Outlier rejection (SCORE algorithm)
+  score:
+    correlation_threshold: 0.6         # Minimum Pearson r vs median perfusion map
+    min_retained_fraction: 0.50        # Never discard more than 50% of pairs
+
+# QC Metrics
+metrics:
+  qei:
+    gm_weight: 2.5                     # GM weight for structural pseudo-CBF
+    wm_weight: 1.0                     # WM weight for structural pseudo-CBF
+    # Exponents for QEI formula
+    alpha: 1.0
+    beta: 1.0
+    gamma: 1.0
+
+  scov:
+    # sCoV within GM mask by default
+    use_gm_mask: true
+
+  histogram:
+    nbins: 100                         # Number of bins for histogram analysis
+
+  snr:
+    # No special config needed; operates on timeseries
+
+  tissue_mask:
+    gm_threshold: 0.5                  # Probability threshold for GM mask
+    wm_threshold: 0.5                  # Probability threshold for WM mask
+
+# Thresholds
+thresholds:
+  empirical:
+    qei_min: 0.53
+    scov_max: 0.42
+    mean_fd_max_mm: 0.5
+    gm_wm_ratio_min: 2.0
+    gm_wm_ratio_max: 3.0
+    neg_gm_cbf_max: 0.10
+    dice_min: 0.70
+
+  ml:
+    method: "isolation_forest"          # isolation_forest | one_class_svm
+    contamination: 0.05                 # Expected outlier fraction
+    n_estimators: 100                   # Trees for Isolation Forest
+    random_state: 42
+
+# Reporting
+reporting:
+  json: true
+  html: true
+  include_plots: true
