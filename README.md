@@ -11,7 +11,7 @@
 pip install -e ".[dev]"
 
 # Run the demo (no MRI data needed!)
-python run_demo.py
+python run_demo.py  
 ```
 
 That's it! The demo generates synthetic brain data and runs all QC metrics.
