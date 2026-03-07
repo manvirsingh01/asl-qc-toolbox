@@ -73,7 +73,7 @@ def generate_json_report(
     report = {
         "provenance": {
             "toolbox": "asl-qc-toolbox",
-            "version": "1.0.0",
+            "version": "2.0.0",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "config_hash": config_hash,
             "input_files": input_files,

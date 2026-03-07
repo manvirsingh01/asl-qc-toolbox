@@ -8,12 +8,12 @@ from asl_qc.cli import _build_parser
 
 def test_parser_required_args():
     parser = _build_parser()
-    # Should fail without --input
-    try:
-        parser.parse_args([])
-        assert False, "Should fail without --input"
-    except SystemExit:
-        pass
+    # --input is now optional (can be omitted when --exploreasl-dir is used)
+    args = parser.parse_args([])
+    assert args.input is None
+    # But providing --input still works
+    args = parser.parse_args(["--input", "/data"])
+    assert args.input == "/data"
 
 
 def test_parser_with_args():

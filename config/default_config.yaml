@@ -3,7 +3,7 @@
 
 pipeline:
   name: "asl-qc-toolbox"
-  version: "1.0.0"
+  version: "2.0.0"
   verbose: true
 
 # BIDS parsing
@@ -60,6 +60,20 @@ metrics:
   tissue_mask:
     gm_threshold: 0.5                  # Probability threshold for GM mask
     wm_threshold: 0.5                  # Probability threshold for WM mask
+    csf_threshold: 0.9                 # High threshold for pure CSF voxels
+
+  att:
+    enabled: true                      # Requires ATT map from multi-PLD
+    long_att_threshold_s: 2.0          # Flag ATT > this as long
+    problematic_fraction: 0.15         # Fail if this fraction of GM affected
+
+  pvc:
+    enabled: true                      # Requires PVC-corrected CBF map
+    impact_threshold: 0.20             # Flag if PVC changes CBF by > 20%
+
+  wmh:
+    enabled: true                      # Requires WMH mask
+    correct_gm_wm_ratio: true          # Exclude WMH from WM mask
 
 # Thresholds
 thresholds:
@@ -77,6 +91,32 @@ thresholds:
     contamination: 0.05                 # Expected outlier fraction
     n_estimators: 100                   # Trees for Isolation Forest
     random_state: 42
+
+# ExploreASL Integration
+exploreasl:
+  enabled: false                       # Set true when using --exploreasl-dir
+  session_label: "ASL_1"               # ExploreASL session label
+  use_pvc_map: true                    # Prefer PVC-corrected CBF if available
+  load_xasl_qc: true                   # Import ExploreASL's own QC values
+
+# Adaptive Thresholds
+adaptive_thresholds:
+  enabled: true
+  field_strength: 3.0                  # Tesla — auto-detected from BIDS if available
+  labeling_type: "PCASL"               # Auto-detected from BIDS if available
+
+# Normative Comparison
+normative:
+  enabled: false                       # Set true for population comparison
+  database: "ENIGMA-ASL-2024"          # Normative dataset identifier
+  z_score_warning: 2.0                 # |z| > this = borderline
+  z_score_critical: 3.0                # |z| > this = outlier
+
+# Longitudinal Tracking
+longitudinal:
+  enabled: false
+  db_path: "./qc_longitudinal.json"
+  min_sessions_for_trend: 3
 
 # Reporting
 reporting:

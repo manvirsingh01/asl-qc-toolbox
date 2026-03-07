@@ -132,7 +132,7 @@ _HTML_TEMPLATE = Template("""\
 
   <div class="card">
     <h2>Provenance</h2>
-    <p class="meta">Toolbox: asl-qc-toolbox v1.0.0</p>
+    <p class="meta">Toolbox: asl-qc-toolbox v2.0.0</p>
     {% for key, path in input_files.items() %}
     <p class="meta">{{ key }}: {{ path }}</p>
     {% endfor %}

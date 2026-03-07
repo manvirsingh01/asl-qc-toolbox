@@ -125,7 +125,7 @@ class PipelineConfig:
     """Top-level configuration for the ASL QC pipeline."""
 
     name: str = "asl-qc-toolbox"
-    version: str = "1.0.0"
+    version: str = "2.0.0"
     verbose: bool = True
     preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)
     metrics: MetricsConfig = field(default_factory=MetricsConfig)

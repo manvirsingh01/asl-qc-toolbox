@@ -6,4 +6,4 @@ cerebral blood flow maps, including QEI, sCoV, motion tracking, histogram
 analysis, tSNR, and ML-based outlier detection.
 """
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
