@@ -1,13 +1,18 @@
 """
-Synthetic brain phantom generator for demos and testing.
+Anatomically realistic synthetic brain phantom generator.
 
-Creates a realistic 3-D brain volume (121x145x121 default, matching MNI
-1.5 mm space) with anatomical features: cortical grey matter with sulcal
-folding patterns that indent the brain surface, deep white matter, lateral
-ventricles, interhemispheric fissure, and probabilistic tissue masks.
+Creates a 3-D brain volume (121x145x121 default, MNI 1.5 mm space) with:
+- Irregular brain boundary with frontal/occipital/temporal lobe shapes
+- Deep sulcal grooves carved into the brain surface (cortical folding)
+- Lateral ventricles with correct C-shaped morphology
+- Subcortical grey matter: caudate, putamen, thalamus
+- Corpus callosum as midline WM bridge
+- Cerebellum as posterior inferior structure
+- Brainstem (pons/medulla) extending inferiorly
+- Probabilistic tissue masks with smooth PV transitions
+- Synthetic T1-weighted image with realistic tissue contrast
 
-Designed to produce high-quality QC images that resemble real
-ExploreASL outputs at publication quality (300 DPI).
+Designed to produce publication-quality QC images at 300 DPI.
 """
 from __future__ import annotations
 
@@ -28,40 +33,72 @@ class BrainPhantom:
     csf_mask: np.ndarray         # float  (probabilistic 0-1)
     ventricles: np.ndarray       # bool
     t1w: np.ndarray              # float  synthetic T1-weighted image
+    subcortical_gm: np.ndarray   # bool  (caudate + putamen + thalamus)
 
 
-def _sulcal_displacement(shape, rng, n_harmonics=8, base_freq=2.0):
-    """Multi-scale noise that modulates the brain surface to create sulci.
+# ── Anatomical parameters (normalised coordinates [-1, 1]) ──────
+# Brain envelope radii
+_RX_BASE = 0.80   # left-right
+_RY_BASE = 0.82   # anterior-posterior
+_RZ_BASE = 0.70   # superior-inferior
 
-    Returns a 3-D field in [0, 1] where high values will push the brain
-    surface inward, creating sulcal grooves.
+# Ventricle parameters
+_VENT_X_OFF = 0.10    # lateral offset from midline
+_VENT_RX = 0.045      # L-R extent
+_VENT_RY = 0.20       # A-P extent
+_VENT_RZ = 0.12       # S-I extent
+
+# Subcortical nuclei sizes (in normalised coords)
+_CAUDATE_RX, _CAUDATE_RY, _CAUDATE_RZ = 0.035, 0.10, 0.09
+_PUTAMEN_RX, _PUTAMEN_RY, _PUTAMEN_RZ = 0.05, 0.08, 0.08
+_THALAMUS_RX, _THALAMUS_RY, _THALAMUS_RZ = 0.06, 0.06, 0.06
+
+# Cortical ribbon depth (voxels, modulated by sulcal field)
+_CORTEX_MIN_DEPTH = 3.5
+_CORTEX_DEPTH_RANGE = 2.0
+
+# WM core distance threshold (voxels from surface)
+_WM_ONSET = 4.0
+_WM_RISE = 5.0
+
+
+def _sulcal_field(shape, rng, n_harmonics=10, base_freq=2.5):
+    """Multi-scale displacement field for cortical folding.
+
+    Returns a 3-D field in [0, 1] — high values indent the brain surface
+    to create sulcal grooves. Uses more harmonics and higher frequency
+    than before for finer, more realistic folding patterns.
     """
     field = np.zeros(shape, dtype=np.float64)
     for k in range(n_harmonics):
-        freq = base_freq * (1.5 ** k)
-        amp = 1.0 / (1.0 + 0.5 * k)
+        freq = base_freq * (1.4 ** k)
+        amp = 1.0 / (1.0 + 0.4 * k)
         raw = rng.normal(0, 1, shape)
-        sigma = max(2.0, shape[0] / (2.0 * freq))
-        smoothed = gaussian_filter(raw, sigma=sigma)
-        field += amp * smoothed
-    # Normalise to [0, 1]
-    field = (field - field.min()) / (field.max() - field.min() + 1e-12)
-    return field
+        sigma = max(1.5, shape[0] / (2.0 * freq))
+        field += amp * gaussian_filter(raw, sigma=sigma)
+    mn, mx = field.min(), field.max()
+    return (field - mn) / (mx - mn + 1e-12)
+
+
+def _ellipsoid(X, Y, Z, cx, cy, cz, rx, ry, rz):
+    """Return boolean mask for an ellipsoid centred at (cx, cy, cz)."""
+    return (((X - cx) / rx) ** 2 +
+            ((Y - cy) / ry) ** 2 +
+            ((Z - cz) / rz) ** 2) <= 1.0
 
 
 def generate_brain_phantom(
     shape: tuple = (121, 145, 121),
     rng: np.random.Generator | None = None,
 ) -> BrainPhantom:
-    """Generate a synthetic brain volume with realistic tissue masks.
+    """Generate a synthetic brain volume with anatomically realistic features.
 
     Parameters
     ----------
     shape : tuple
         (X, Y, Z) voxel dimensions.  Default (121, 145, 121) matches
-        MNI 1.5 mm space for realistic aspect ratios.
+        MNI 1.5 mm space.
     rng : numpy Generator, optional
-        Random number generator for reproducibility.
 
     Returns
     -------
@@ -71,71 +108,146 @@ def generate_brain_phantom(
         rng = np.random.default_rng(42)
 
     nx, ny, nz = shape
-
-    # Coordinate grids normalised to [-1, 1]
     xs = np.linspace(-1, 1, nx)
     ys = np.linspace(-1, 1, ny)
     zs = np.linspace(-1, 1, nz)
     X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
 
-    # ── Outer brain boundary ─────────────────────────────────────
-    # Use a realistic brain-shaped envelope (not a pure ellipsoid):
-    # - Wider L-R (X), elongated A-P (Y), compact S-I (Z)
-    # - Frontal flattening, occipital rounding, temporal bulge
-    # - Slight downward tilt of frontal lobe
-    r_x = 0.82 + 0.06 * np.tanh(3.0 * Y)                # narrower posteriorly
-    r_y = 0.80 + 0.04 * Z                                # elongated anteriorly at top
-    r_z = 0.72 - 0.08 * Y.clip(0)                        # flatter top posteriorly
+    # ── 1. Cerebrum outer boundary ───────────────────────────────
+    # Asymmetric radii: frontal broader, occipital narrower,
+    # temporal lobe bulge, slight inferior tilt anteriorly.
+    r_x = _RX_BASE + 0.05 * np.tanh(2.5 * Y) + 0.03 * (1 - Z.clip(0))
+    r_y = _RY_BASE + 0.03 * Z                   # longer A-P at top
+    r_z = _RZ_BASE - 0.06 * Y.clip(0)           # flatter posteriorly
 
-    brain_dist = (X / r_x) ** 2 + (Y / r_y) ** 2 + (Z / r_z) ** 2
+    cerebrum_dist = (X / r_x) ** 2 + (Y / r_y) ** 2 + (Z / r_z) ** 2
 
-    # Carve sulci into the brain surface using multi-scale displacement
-    sulcal_field = _sulcal_displacement(shape, rng, n_harmonics=8, base_freq=2.5)
-    # Modulate the boundary threshold: sulci push the surface inward
-    sulcal_depth = 0.14  # how deep sulci can go
-    effective_threshold = 1.0 - sulcal_depth * sulcal_field
+    # Temporal lobe bulge: widen brain laterally in inferior-anterior
+    temporal_bulge = np.exp(-((Z + 0.25) ** 2 / 0.06 + (Y - 0.15) ** 2 / 0.08))
+    cerebrum_dist -= 0.12 * temporal_bulge
 
-    brain_base = brain_dist <= effective_threshold
+    # Sulcal indentations
+    sulcal = _sulcal_field(shape, rng, n_harmonics=10, base_freq=2.5)
+    sulcal_depth = 0.18
+    threshold = 1.0 - sulcal_depth * sulcal
+    cerebrum = cerebrum_dist <= threshold
 
-    # ── Interhemispheric fissure (thin gap, only 1 voxel at true midline) ─
-    # Use a very narrow fissure that gets wider near the top (dorsal)
-    fissure_width = 0.012 + 0.015 * Z.clip(0)  # wider dorsally
-    fissure = np.abs(X) < fissure_width
-    brain_mask = brain_base & ~fissure
+    # ── 2. Cerebellum (posterior-inferior) ────────────────────────
+    cerebellum = _ellipsoid(X, Y, Z, 0.0, -0.52, -0.55, 0.42, 0.22, 0.18)
+    # Cerebellar fissure (vermis gap)
+    cb_fissure = np.abs(X) < 0.025
+    cerebellum = cerebellum & ~cb_fissure
 
-    # ── Lateral ventricles (horn-shaped cavities) ─────────────────
-    vent_left = (
-        ((X + 0.11) / 0.06) ** 2
-        + ((Y - 0.02) / 0.22) ** 2
-        + ((Z + 0.04) / 0.14) ** 2
-    ) <= 1.0
-    vent_right = (
-        ((X - 0.11) / 0.06) ** 2
-        + ((Y - 0.02) / 0.22) ** 2
-        + ((Z + 0.04) / 0.14) ** 2
-    ) <= 1.0
-    ventricles = (vent_left | vent_right) & brain_mask
+    # ── 3. Brainstem (inferior midline) ──────────────────────────
+    brainstem = _ellipsoid(X, Y, Z, 0.0, -0.20, -0.58, 0.08, 0.10, 0.16)
+
+    # ── 4. Combine into full brain mask ──────────────────────────
+    brain_raw = cerebrum | cerebellum | brainstem
+
+    # Interhemispheric fissure — only in cerebrum, widens dorsally
+    fissure_width = 0.010 + 0.012 * Z.clip(0)
+    fissure = (np.abs(X) < fissure_width) & (Z > -0.30)  # not in brainstem
+    brain_mask = brain_raw & ~fissure
+
+    # ── 5. Lateral ventricles (C-shaped) ─────────────────────────
+    # Body of lateral ventricle
+    vent_body_L = _ellipsoid(X, Y, Z, -_VENT_X_OFF, -0.02, 0.0,
+                             _VENT_RX, _VENT_RY, _VENT_RZ)
+    vent_body_R = _ellipsoid(X, Y, Z, _VENT_X_OFF, -0.02, 0.0,
+                             _VENT_RX, _VENT_RY, _VENT_RZ)
+    # Frontal horn (anterior extension, tilted down)
+    vent_front_L = _ellipsoid(X, Y, Z, -0.06, 0.18, -0.04,
+                              0.03, 0.08, 0.05)
+    vent_front_R = _ellipsoid(X, Y, Z, 0.06, 0.18, -0.04,
+                              0.03, 0.08, 0.05)
+    # Occipital horn (posterior extension)
+    vent_occ_L = _ellipsoid(X, Y, Z, -0.07, -0.22, -0.03,
+                            0.025, 0.06, 0.035)
+    vent_occ_R = _ellipsoid(X, Y, Z, 0.07, -0.22, -0.03,
+                            0.025, 0.06, 0.035)
+    # Temporal horn (inferior-lateral extension)
+    vent_temp_L = _ellipsoid(X, Y, Z, -0.16, -0.05, -0.18,
+                             0.03, 0.10, 0.03)
+    vent_temp_R = _ellipsoid(X, Y, Z, 0.16, -0.05, -0.18,
+                             0.03, 0.10, 0.03)
+
+    ventricles = ((vent_body_L | vent_body_R |
+                   vent_front_L | vent_front_R |
+                   vent_occ_L | vent_occ_R |
+                   vent_temp_L | vent_temp_R) & brain_mask)
+
+    # Third ventricle (midline slit)
+    third_vent = _ellipsoid(X, Y, Z, 0.0, -0.04, -0.02,
+                            0.012, 0.06, 0.05)
+    ventricles = ventricles | (third_vent & brain_mask)
+
     brain_no_vent = brain_mask & ~ventricles
 
-    # ── Probabilistic tissue masks ───────────────────────────────
+    # ── 6. Subcortical grey matter structures ────────────────────
+    # Caudate nucleus (medial to ventricle, C-shaped head)
+    caudate_L = _ellipsoid(X, Y, Z, -0.06, 0.06, 0.02,
+                           _CAUDATE_RX, _CAUDATE_RY, _CAUDATE_RZ)
+    caudate_R = _ellipsoid(X, Y, Z, 0.06, 0.06, 0.02,
+                           _CAUDATE_RX, _CAUDATE_RY, _CAUDATE_RZ)
+    # Putamen (lateral to caudate)
+    putamen_L = _ellipsoid(X, Y, Z, -0.18, 0.02, -0.02,
+                           _PUTAMEN_RX, _PUTAMEN_RY, _PUTAMEN_RZ)
+    putamen_R = _ellipsoid(X, Y, Z, 0.18, 0.02, -0.02,
+                           _PUTAMEN_RX, _PUTAMEN_RY, _PUTAMEN_RZ)
+    # Thalamus (posterior and medial)
+    thal_L = _ellipsoid(X, Y, Z, -0.08, -0.10, -0.04,
+                        _THALAMUS_RX, _THALAMUS_RY, _THALAMUS_RZ)
+    thal_R = _ellipsoid(X, Y, Z, 0.08, -0.10, -0.04,
+                        _THALAMUS_RX, _THALAMUS_RY, _THALAMUS_RZ)
+
+    subcortical_gm = ((caudate_L | caudate_R |
+                       putamen_L | putamen_R |
+                       thal_L | thal_R) & brain_no_vent)
+
+    # ── 7. Corpus callosum (midline WM bridge) ──────────────────
+    # Curved band connecting hemispheres (visible in sagittal)
+    cc_body = _ellipsoid(X, Y, Z, 0.0, -0.02, 0.12,
+                         0.04, 0.28, 0.03)
+    # Genu (anterior thickening)
+    cc_genu = _ellipsoid(X, Y, Z, 0.0, 0.22, 0.06,
+                         0.03, 0.04, 0.06)
+    # Splenium (posterior thickening)
+    cc_splenium = _ellipsoid(X, Y, Z, 0.0, -0.28, 0.06,
+                             0.03, 0.04, 0.06)
+    corpus_callosum = (cc_body | cc_genu | cc_splenium) & brain_no_vent
+
+    # ── 8. Probabilistic tissue masks ────────────────────────────
     dist_from_surface = distance_transform_edt(brain_no_vent).astype(np.float64)
 
-    # GM sits in the outer "cortical ribbon" of the brain
-    # Sulcal field modulates cortical thickness (thinner in sulci)
-    cortical_depth = 5.0 + 2.5 * sulcal_field
-    gm_prob = np.clip(1.0 - (dist_from_surface - 0.8) / cortical_depth, 0, 1)
+    # Cortical GM ribbon — modulated by sulcal field
+    cortical_depth = _CORTEX_MIN_DEPTH + _CORTEX_DEPTH_RANGE * sulcal
+    gm_prob = np.clip(1.0 - (dist_from_surface - 0.5) / cortical_depth, 0, 1)
     gm_prob[~brain_no_vent] = 0.0
+    # Add subcortical GM as bright islands
+    gm_prob[subcortical_gm] = np.maximum(gm_prob[subcortical_gm], 0.85)
 
-    # WM: high deep inside, steep fall-off toward cortex
-    wm_prob = np.clip((dist_from_surface - 4.0) / 5.0, 0, 1)
+    # WM core
+    wm_prob = np.clip((dist_from_surface - _WM_ONSET) / _WM_RISE, 0, 1)
     wm_prob[~brain_no_vent] = 0.0
     wm_prob[ventricles] = 0.0
+    # Corpus callosum is definite WM
+    wm_prob[corpus_callosum] = np.maximum(wm_prob[corpus_callosum], 0.90)
+    # Subcortical GM overrides WM
+    wm_prob[subcortical_gm] = np.minimum(wm_prob[subcortical_gm], 0.10)
 
-    # Smooth for realistic partial volume boundaries
-    gm_prob = gaussian_filter(gm_prob, sigma=1.2)
-    wm_prob = gaussian_filter(wm_prob, sigma=1.2)
+    # Cerebellar GM (outer cerebellar cortex)
+    cb_dist = distance_transform_edt(cerebellum & brain_no_vent).astype(np.float64)
+    cb_gm = np.clip(1.0 - (cb_dist - 0.5) / 3.0, 0, 1)
+    cb_gm[~(cerebellum & brain_no_vent)] = 0.0
+    # Merge cerebellar GM with cortical GM
+    in_cb = cerebellum & brain_no_vent
+    gm_prob[in_cb] = np.maximum(gm_prob[in_cb], cb_gm[in_cb])
 
-    # Normalise so GM + WM <= 1 inside brain parenchyma
+    # Smooth for PV boundaries
+    gm_prob = gaussian_filter(gm_prob, sigma=1.0)
+    wm_prob = gaussian_filter(wm_prob, sigma=1.0)
+
+    # Normalise so GM + WM <= 1 within parenchyma
     total = gm_prob + wm_prob + 1e-12
     gm_prob = np.where(brain_no_vent, gm_prob / total, 0.0)
     wm_prob = np.where(brain_no_vent, wm_prob / total, 0.0)
@@ -143,20 +255,26 @@ def generate_brain_phantom(
     # CSF
     csf_prob = np.zeros(shape, dtype=np.float64)
     csf_prob[ventricles] = 1.0
-    # Sulcal CSF: surface voxels not covered by brain parenchyma
-    surface_ring = brain_mask & ~brain_no_vent
-    csf_prob[surface_ring] = 0.3
+    # Sulcal CSF in surface gaps
+    surface_gap = brain_mask & ~brain_no_vent
+    csf_prob[surface_gap] = 0.3
 
-    # ── Synthetic T1-weighted image ──────────────────────────────
-    # T1 signal intensities: WM bright (~200), GM mid (~120), CSF dark (~30)
+    # ── 9. Synthetic T1-weighted image ───────────────────────────
     t1w = np.zeros(shape, dtype=np.float64)
-    t1w += wm_prob * 200.0
-    t1w += gm_prob * 120.0
-    t1w += csf_prob * 30.0
-    # Add realistic Rician noise
-    noise_level = 6.0
-    t1w += rng.normal(0, noise_level, shape)
-    t1w = gaussian_filter(t1w, sigma=0.6)
+    t1w += wm_prob * 210.0        # WM bright
+    t1w += gm_prob * 130.0        # GM mid-grey
+    t1w += csf_prob * 25.0        # CSF dark
+    # Subcortical GM slightly different intensity than cortex
+    t1w[subcortical_gm] = 115.0 + rng.normal(0, 3, shape)[subcortical_gm]
+    # Corpus callosum very bright WM
+    t1w[corpus_callosum] = 220.0 + rng.normal(0, 3, shape)[corpus_callosum]
+    # Brainstem moderate intensity
+    bs_mask = brainstem & brain_no_vent & ~subcortical_gm
+    t1w[bs_mask] = 150.0 + rng.normal(0, 5, shape)[bs_mask]
+
+    # Rician noise + smoothing
+    t1w += rng.normal(0, 5.0, shape)
+    t1w = gaussian_filter(t1w, sigma=0.5)
     t1w[~brain_mask] = rng.normal(5, 3, shape)[~brain_mask].clip(0)
     t1w = np.clip(t1w, 0, 255)
 
@@ -168,6 +286,7 @@ def generate_brain_phantom(
         csf_mask=csf_prob,
         ventricles=ventricles,
         t1w=t1w,
+        subcortical_gm=subcortical_gm,
     )
 
 
