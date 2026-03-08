@@ -55,9 +55,9 @@ print(f"Field Strength: {metadata.magnetic_field_strength}T")
 # Check required fields
 missing = validate_metadata(metadata)
 if missing:
-    print(f"⚠️  Missing BIDS fields: {missing}")
+    print(f"[WARN] Missing BIDS fields: {missing}")
 else:
-    print("✅ All required BIDS fields present")
+    print("[OK] All required BIDS fields present")
 
 
 # ─────────────────────────────────────────────────────────

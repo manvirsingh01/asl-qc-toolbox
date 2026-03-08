@@ -1,0 +1,137 @@
+{
+  "provenance": {
+    "toolbox": "asl-qc-toolbox",
+    "version": "2.0.0",
+    "timestamp": "2026-03-08T11:25:27.892243+00:00",
+    "config_hash": "",
+    "input_files": {}
+  },
+  "metrics": {
+    "empirical_thresholds": {
+      "overall_pass": false,
+      "n_passed": 0,
+      "n_failed": 8,
+      "verdicts": [
+        {
+          "metric_name": "qei",
+          "value": NaN,
+          "threshold": 0.53,
+          "operator": ">=",
+          "passed": false
+        },
+        {
+          "metric_name": "scov_gm",
+          "value": NaN,
+          "threshold": 0.42,
+          "operator": "<=",
+          "passed": false
+        },
+        {
+          "metric_name": "mean_fd",
+          "value": NaN,
+          "threshold": 0.5,
+          "operator": "<=",
+          "passed": false
+        },
+        {
+          "metric_name": "gm_wm_ratio (min)",
+          "value": NaN,
+          "threshold": 2.0,
+          "operator": ">=",
+          "passed": false
+        },
+        {
+          "metric_name": "gm_wm_ratio (max)",
+          "value": NaN,
+          "threshold": 3.0,
+          "operator": "<=",
+          "passed": false
+        },
+        {
+          "metric_name": "neg_gm_cbf",
+          "value": NaN,
+          "threshold": 0.1,
+          "operator": "<=",
+          "passed": false
+        },
+        {
+          "metric_name": "dice",
+          "value": NaN,
+          "threshold": 0.7,
+          "operator": ">=",
+          "passed": false
+        },
+        {
+          "metric_name": "transit_artifact_fraction",
+          "value": NaN,
+          "threshold": 0.15,
+          "operator": "<=",
+          "passed": false
+        }
+      ]
+    }
+  },
+  "verdicts": {
+    "overall_pass": false,
+    "n_passed": 0,
+    "n_failed": 8,
+    "verdicts": [
+      {
+        "metric_name": "qei",
+        "value": NaN,
+        "threshold": 0.53,
+        "operator": ">=",
+        "passed": false
+      },
+      {
+        "metric_name": "scov_gm",
+        "value": NaN,
+        "threshold": 0.42,
+        "operator": "<=",
+        "passed": false
+      },
+      {
+        "metric_name": "mean_fd",
+        "value": NaN,
+        "threshold": 0.5,
+        "operator": "<=",
+        "passed": false
+      },
+      {
+        "metric_name": "gm_wm_ratio (min)",
+        "value": NaN,
+        "threshold": 2.0,
+        "operator": ">=",
+        "passed": false
+      },
+      {
+        "metric_name": "gm_wm_ratio (max)",
+        "value": NaN,
+        "threshold": 3.0,
+        "operator": "<=",
+        "passed": false
+      },
+      {
+        "metric_name": "neg_gm_cbf",
+        "value": NaN,
+        "threshold": 0.1,
+        "operator": "<=",
+        "passed": false
+      },
+      {
+        "metric_name": "dice",
+        "value": NaN,
+        "threshold": 0.7,
+        "operator": ">=",
+        "passed": false
+      },
+      {
+        "metric_name": "transit_artifact_fraction",
+        "value": NaN,
+        "threshold": 0.15,
+        "operator": "<=",
+        "passed": false
+      }
+    ]
+  }
+}

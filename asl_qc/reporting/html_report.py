@@ -71,14 +71,19 @@ _HTML_TEMPLATE = Template("""\
     }
     .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
     .stat-label { font-size: .75rem; color: var(--text-muted); margin-top: .25rem; }
+    .image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+    .image-panel { text-align: center; }
+    .image-panel img { width: 100%; border-radius: 8px; border: 1px solid var(--border); }
+    .image-panel .img-title { font-size: .85rem; font-weight: 600; margin-bottom: .5rem; color: var(--text); }
+    .image-panel .img-caption { font-size: .7rem; color: var(--text-muted); margin-top: .35rem; }
   </style>
 </head>
 <body>
-  <h1>🧠 ASL Quality Control Report</h1>
+  <h1>ASL Quality Control Report</h1>
   <p class="subtitle">Subject: {{ subject_id }} &middot; Generated: {{ timestamp }}</p>
 
   <div class="overall {{ 'overall-pass' if overall_pass else 'overall-fail' }}">
-    {{ '✅ OVERALL PASS' if overall_pass else '❌ OVERALL FAIL' }}
+    {{ 'OVERALL PASS' if overall_pass else 'OVERALL FAIL' }}
     — {{ n_passed }}/{{ n_total }} metrics passed
   </div>
 
@@ -130,6 +135,38 @@ _HTML_TEMPLATE = Template("""\
   </div>
   {% endif %}
 
+  {% if images %}
+  <div class="card">
+    <h2>Image Slices</h2>
+    <div class="image-grid">
+      {% for img in images %}
+      <div class="image-panel">
+        <div class="img-title">{{ img.title }}</div>
+        <img src="data:image/png;base64,{{ img.base64 }}" alt="{{ img.title }}">
+        {% if img.caption %}<div class="img-caption">{{ img.caption }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if data_summary %}
+  <div class="card">
+    <h2>Input Data Summary</h2>
+    {% for section in data_summary %}
+    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">{{ section.title }}</h3>
+    <table>
+      <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+      <tbody>
+        {% for row in section.rows %}
+        <tr><td>{{ row.name }}</td><td>{{ row.value }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div class="card">
     <h2>Provenance</h2>
     <p class="meta">Toolbox: asl-qc-toolbox v2.0.0</p>
@@ -150,6 +187,8 @@ def generate_html_report(
     summary_stats: List[Dict[str, str]],
     input_files: Dict[str, str],
     ml_verdict: Optional[Dict[str, Any]] = None,
+    data_summary: Optional[List[Dict[str, Any]]] = None,
+    images: Optional[List[Dict[str, str]]] = None,
     output_path: str | Path = "qc_report.html",
 ) -> Path:
     """Generate a self-contained HTML QC report.
@@ -171,6 +210,12 @@ def generate_html_report(
         Input file provenance.
     ml_verdict : dict, optional
         ML outlier detection result.
+    data_summary : list of dict, optional
+        Sections of input data detail. Each dict has ``title`` (str)
+        and ``rows`` (list of dicts with ``name`` and ``value``).
+    images : list of dict, optional
+        Embedded images. Each dict has ``title`` (str),
+        ``base64`` (base64-encoded PNG), and optional ``caption`` (str).
     output_path : path-like
         Where to write the HTML.
 
@@ -192,6 +237,8 @@ def generate_html_report(
         summary_stats=summary_stats,
         input_files=input_files,
         ml_verdict=ml_verdict,
+        data_summary=data_summary,
+        images=images,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

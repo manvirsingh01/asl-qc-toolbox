@@ -110,4 +110,4 @@ all_metrics = {
 verdict = apply_empirical_thresholds(all_metrics)
 print(f"\nOverall: {'PASS' if verdict.overall_pass else 'FAIL'}")
 for v in verdict.verdicts:
-    print(f"  {v.metric_name}: {'✅' if v.passed else '❌'} ({v.value:.3f} {v.operator} {v.threshold:.3f})")
+    print(f"  {v.metric_name}: {'[PASS]' if v.passed else '[FAIL]'} ({v.value:.3f} {v.operator} {v.threshold:.3f})")
