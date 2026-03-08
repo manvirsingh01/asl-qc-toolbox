@@ -19,35 +19,41 @@ from pathlib import Path
 
 import nibabel as nib
 import numpy as np
-from scipy.ndimage import binary_erosion
+
+from asl_qc.phantom import (
+    generate_brain_phantom, generate_cbf_map,
+    generate_temporal_sd_bad, generate_motion_params_bad, generate_m0_image,
+)
 
 # ── Step 1: Build a fake ExploreASL directory tree ─────────────────
 print("[ASL-QC] ASL QC Toolbox -- FAILING-QC Demo (ExploreASL)\n")
 print("Step 1: Creating fake ExploreASL directory with bad data...")
 
 rng = np.random.default_rng(99)
-shape = (32, 32, 20)
+shape = (121, 145, 121)
 affine = np.eye(4)
 
-# Brain mask (ellipsoid)
-mask = np.zeros(shape, dtype=bool)
-cx, cy, cz = 16, 16, 10
-for x in range(32):
-    for y in range(32):
-        for z in range(20):
-            if ((x - cx) / 10) ** 2 + ((y - cy) / 10) ** 2 + ((z - cz) / 6) ** 2 <= 1:
-                mask[x, y, z] = True
+# Realistic brain phantom
+phantom = generate_brain_phantom(shape=shape, rng=rng)
 
-gm_mask = mask & ~binary_erosion(mask, iterations=2)
-wm_mask = binary_erosion(mask, iterations=2)
+# Binary masks for metric computation
+gm_mask = phantom.gm_mask > 0.5
+wm_mask = phantom.wm_mask > 0.5
+mask = phantom.brain_mask
+
+# Probabilistic maps for visualisation
+gm_prob = phantom.gm_mask
+wm_prob = phantom.wm_mask
 
 # ── Deliberately BAD CBF map ──────────────────────────────────────
-# • Very noisy GM with many negative voxels  → high neg_gm_cbf, low QEI
-# • GM mean ≈ WM mean                        → GM/WM ratio ≈ 1 (FAIL, needs 2–3)
-# • Huge spatial variance                    → sCoV >> 0.42 (FAIL)
-cbf = np.zeros(shape, dtype=np.float64)
-cbf[gm_mask] = 15 + rng.normal(0, 40, size=int(np.sum(gm_mask)))   # very noisy, lots of negatives
-cbf[wm_mask] = 15 + rng.normal(0, 20, size=int(np.sum(wm_mask)))   # same mean as GM
+# Very noisy GM with many negative voxels, GM mean ~ WM mean
+cbf = generate_cbf_map(phantom, gm_cbf=15, wm_cbf=15,
+                        gm_noise=100, wm_noise=50, rng=rng)
+
+# BAD temporal SD and motion
+temporal_sd = generate_temporal_sd_bad(phantom, rng=rng)
+motion_params = generate_motion_params_bad(n_volumes=80, max_displacement=2.5, rng=rng)
+m0 = generate_m0_image(phantom, rng=rng)
 
 # Write NIfTI files into a temporary ExploreASL-like directory
 tmp_root = Path(tempfile.mkdtemp(prefix="xasl_fail_demo_"))
@@ -60,9 +66,9 @@ t1w_dir.mkdir(parents=True)
 
 nib.save(nib.Nifti1Image(cbf, affine),
          str(asl_dir / f"{subject_id}_ASL_1_CBF.nii.gz"))
-nib.save(nib.Nifti1Image(gm_mask.astype(np.float32), affine),
+nib.save(nib.Nifti1Image(gm_prob.astype(np.float32), affine),
          str(t1w_dir / f"{subject_id}_T1w_pGM.nii.gz"))
-nib.save(nib.Nifti1Image(wm_mask.astype(np.float32), affine),
+nib.save(nib.Nifti1Image(wm_prob.astype(np.float32), affine),
          str(t1w_dir / f"{subject_id}_T1w_pWM.nii.gz"))
 nib.save(nib.Nifti1Image(mask.astype(np.float32), affine),
          str(t1w_dir / f"{subject_id}_T1w_BrainMask.nii.gz"))
@@ -202,101 +208,31 @@ print(f"   Anomaly Score: {pred.anomaly_score:.4f}")
 print("\nStep 7: Generating HTML report...")
 
 from asl_qc.reporting.html_report import generate_html_report
+from asl_qc.reporting.exploreasl_images import generate_all_qc_images
 import os
-import base64
-import io
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
-def _render_slice(volume, title, cmap="RdBu_r", vmin=None, vmax=None, mask_overlay=None):
-    """Render axial/coronal/sagittal mid-slices to a base64 PNG."""
-    mid = [s // 2 for s in volume.shape]
-    fig, axes = plt.subplots(1, 3, figsize=(9, 3), facecolor="#1e293b")
-    slices = [
-        volume[mid[0], :, :],   # sagittal
-        volume[:, mid[1], :],   # coronal
-        volume[:, :, mid[2]],   # axial
-    ]
-    labels = ["Sagittal", "Coronal", "Axial"]
-    for ax, sl, lbl in zip(axes, slices, labels):
-        im = ax.imshow(sl.T, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax, aspect="equal")
-        if mask_overlay is not None:
-            overlay_slices = [
-                mask_overlay[mid[0], :, :],
-                mask_overlay[:, mid[1], :],
-                mask_overlay[:, :, mid[2]],
-            ]
-            ov = overlay_slices[labels.index(lbl)]
-            ax.contour(ov.T, levels=[0.5], colors="lime", linewidths=0.8, origin="lower")
-        ax.set_title(lbl, color="#e2e8f0", fontsize=9)
-        ax.axis("off")
-    fig.suptitle(title, color="#e2e8f0", fontsize=11, fontweight="bold")
-    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.04)
-    cbar.ax.tick_params(colors="#94a3b8", labelsize=7)
-    fig.subplots_adjust(right=0.92, top=0.88)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=120, facecolor=fig.get_facecolor())
-    plt.close(fig)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("ascii")
+print("   Rendering ExploreASL QC image panels (300 DPI)...")
 
-print("   Rendering slice images...")
-
-images = [
-    {
-        "title": "CBF Map",
-        "base64": _render_slice(cbf_data, "CBF Map (ml/100g/min)",
-                                cmap="RdBu_r", vmin=-60, vmax=80,
-                                mask_overlay=gm_data.astype(float)),
-        "caption": "CBF with GM contour (green). Note noisy values and many negatives.",
+images = generate_all_qc_images(
+    t1w=phantom.t1w,
+    cbf=cbf_data,
+    gm_prob=phantom.gm_mask,
+    wm_prob=phantom.wm_mask,
+    brain_mask=phantom.brain_mask,
+    temporal_sd=temporal_sd,
+    motion_params=motion_params,
+    m0=m0,
+    cbf_gm_values=cbf_data[gm_data],
+    hist_stats={
+        "percentile_5": hist.percentile_5,
+        "percentile_95": hist.percentile_95,
+        "skewness": hist.skewness,
+        "kurtosis": hist.kurtosis,
+        "caption_extra": f"{qei.negative_gm_fraction*100:.0f}% of GM voxels negative.",
     },
-    {
-        "title": "GM Mask",
-        "base64": _render_slice(gm_data.astype(float), "Grey Matter Mask",
-                                cmap="Greens", vmin=0, vmax=1),
-        "caption": "Binary GM tissue mask used for QC metrics.",
-    },
-    {
-        "title": "WM Mask",
-        "base64": _render_slice(wm_data.astype(float), "White Matter Mask",
-                                cmap="Blues", vmin=0, vmax=1),
-        "caption": "Binary WM tissue mask.",
-    },
-    {
-        "title": "Brain Mask",
-        "base64": _render_slice(mask.astype(float), "Brain Mask",
-                                cmap="Oranges", vmin=0, vmax=1),
-        "caption": "Full brain mask (GM + WM).",
-    },
-]
-
-# CBF histogram plot
-fig_hist, ax_hist = plt.subplots(figsize=(6, 3), facecolor="#1e293b")
-gm_vals = cbf_data[gm_data]
-ax_hist.hist(gm_vals, bins=40, color="#6366f1", alpha=0.8, edgecolor="#334155")
-ax_hist.axvline(0, color="#ef4444", linestyle="--", linewidth=1.5, label="CBF = 0")
-ax_hist.axvline(hist.percentile_5, color="#f59e0b", linestyle=":", linewidth=1, label=f"P5 = {hist.percentile_5:.0f}")
-ax_hist.axvline(hist.percentile_95, color="#22c55e", linestyle=":", linewidth=1, label=f"P95 = {hist.percentile_95:.0f}")
-ax_hist.set_xlabel("CBF (ml/100g/min)", color="#e2e8f0", fontsize=9)
-ax_hist.set_ylabel("Voxel count", color="#e2e8f0", fontsize=9)
-ax_hist.set_title("GM CBF Histogram", color="#e2e8f0", fontsize=11, fontweight="bold")
-ax_hist.tick_params(colors="#94a3b8", labelsize=7)
-ax_hist.legend(fontsize=7, facecolor="#1e293b", edgecolor="#334155", labelcolor="#e2e8f0")
-for spine in ax_hist.spines.values():
-    spine.set_color("#334155")
-ax_hist.set_facecolor("#0f172a")
-fig_hist.tight_layout()
-buf_h = io.BytesIO()
-fig_hist.savefig(buf_h, format="png", dpi=120, facecolor=fig_hist.get_facecolor())
-plt.close(fig_hist)
-buf_h.seek(0)
-images.append({
-    "title": "GM CBF Histogram",
-    "base64": base64.b64encode(buf_h.read()).decode("ascii"),
-    "caption": f"Skewness={hist.skewness:.3f}, Kurtosis={hist.kurtosis:.3f}. "
-               f"35% of GM voxels are negative (red dashed line).",
-})
+    cbf_vmin=-100,
+    cbf_vmax=80,
+)
 
 report_path = "demo_fail_report.html"
 
@@ -314,8 +250,8 @@ data_summary = [
     {
         "title": "CBF Map Statistics (Intentionally Bad)",
         "rows": [
-            {"name": "GM CBF generation", "value": "15 ± 40 ml/100g/min (very noisy, many negatives)"},
-            {"name": "WM CBF generation", "value": "15 ± 20 ml/100g/min (same mean as GM)"},
+            {"name": "GM CBF generation", "value": "15 +/- 100 ml/100g/min (very noisy, many negatives)"},
+            {"name": "WM CBF generation", "value": "15 +/- 50 ml/100g/min (same mean as GM)"},
             {"name": "Measured mean GM CBF", "value": f"{mean_gm:.1f} ml/100g/min"},
             {"name": "Measured mean WM CBF", "value": f"{mean_wm:.1f} ml/100g/min"},
             {"name": "GM/WM ratio", "value": f"{ratio:.2f} (expected 2.0–3.0)"},
@@ -363,6 +299,19 @@ data_summary = [
             {"name": "Brain mask", "value": str(paths.brain_mask)},
             {"name": "Validation passed", "value": str(val.is_valid)},
             {"name": "Missing optional", "value": ", ".join(paths.missing_optional) or "None"},
+        ],
+    },
+    {
+        "title": "ExploreASL QC Reference Values",
+        "rows": [
+            {"name": "Expected GM CBF (PVC0)", "value": "~52 ml/100g/min"},
+            {"name": "Expected GM CBF (PVC2)", "value": "~65 ml/100g/min"},
+            {"name": "sCoV threshold", "value": "<= 0.42"},
+            {"name": "QEI threshold", "value": ">= 0.53"},
+            {"name": "Mean FD threshold", "value": "<= 0.50 mm"},
+            {"name": "Dice threshold", "value": ">= 0.70"},
+            {"name": "Neg GM CBF threshold", "value": "<= 0.10"},
+            {"name": "GM/WM ratio range", "value": "2.0 - 3.0"},
         ],
     },
 ]

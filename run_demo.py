@@ -11,32 +11,35 @@ Usage:
 """
 
 import numpy as np
-from scipy.ndimage import binary_erosion
 
 # ── Step 1: Generate synthetic brain data ──────────────────────────
 print("[ASL-QC] ASL QC Toolbox -- Demo\n")
-print("Step 1: Generating synthetic brain data...")
+print("Step 1: Generating synthetic brain data (121x145x121)...")
+
+from asl_qc.phantom import (
+    generate_brain_phantom, generate_cbf_map,
+    generate_temporal_sd, generate_motion_params, generate_m0_image,
+)
 
 rng = np.random.default_rng(42)
-shape = (32, 32, 20)
+shape = (121, 145, 121)
 
-# Brain mask (ellipsoid)
-mask = np.zeros(shape, dtype=bool)
-cx, cy, cz = 16, 16, 10
-for x in range(32):
-    for y in range(32):
-        for z in range(20):
-            if ((x - cx) / 10) ** 2 + ((y - cy) / 10) ** 2 + ((z - cz) / 6) ** 2 <= 1:
-                mask[x, y, z] = True
+phantom = generate_brain_phantom(shape=shape, rng=rng)
+mask = phantom.brain_mask
+gm_mask = phantom.gm_mask > 0.5
+wm_mask = phantom.wm_mask > 0.5
 
-# Tissue masks
-gm_mask = mask & ~binary_erosion(mask, iterations=2)
-wm_mask = binary_erosion(mask, iterations=2)
+# CBF map: GM ~ 60 ml/100g/min, WM ~ 22 ml/100g/min
+cbf = generate_cbf_map(phantom, gm_cbf=60, wm_cbf=22, gm_noise=3, wm_noise=2, rng=rng)
 
-# CBF map: GM ~ 60 ml/100g/min, WM ~ 25 ml/100g/min
-cbf = np.zeros(shape)
-cbf[gm_mask] = 60 + rng.normal(0, 5, size=int(np.sum(gm_mask)))
-cbf[wm_mask] = 25 + rng.normal(0, 3, size=int(np.sum(wm_mask)))
+# Probabilistic maps for visualisation
+gm_prob = phantom.gm_mask
+wm_prob = phantom.wm_mask
+
+# Additional ExploreASL QC data
+temporal_sd = generate_temporal_sd(phantom, rng=rng)
+motion_params = generate_motion_params(n_volumes=80, max_displacement=0.3, rng=rng)
+m0 = generate_m0_image(phantom, rng=rng)
 
 print(f"   Brain mask: {np.sum(mask)} voxels")
 print(f"   GM voxels:  {np.sum(gm_mask)}")
@@ -142,106 +145,34 @@ print("  • Edit this script to load your own NIfTI data")
 print("  • Use 'asl-qc --help' for the full CLI")
 print("  • See examples/ for more usage patterns")
 print("  • Run 'python -m pytest tests/ -v' for the test suite")
-# ── Step 5: HTML Report ───────────────────────────────────────────
+# ── Step 5: HTML Report with ExploreASL QC Images ─────────────────
 from asl_qc.reporting.html_report import generate_html_report
+from asl_qc.reporting.exploreasl_images import generate_all_qc_images
 from datetime import datetime
 import os
-import base64
-import io
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
+print("\n   Rendering ExploreASL QC images at 300 DPI...")
 
-def _render_slice(volume, title, cmap="RdBu_r", vmin=None, vmax=None, mask_overlay=None):
-    """Render axial/coronal/sagittal mid-slices to a base64 PNG."""
-    mid = [s // 2 for s in volume.shape]
-    fig, axes = plt.subplots(1, 3, figsize=(9, 3), facecolor="#1e293b")
-    slices = [
-        volume[mid[0], :, :],   # sagittal
-        volume[:, mid[1], :],   # coronal
-        volume[:, :, mid[2]],   # axial
-    ]
-    labels = ["Sagittal", "Coronal", "Axial"]
-    for ax, sl, lbl in zip(axes, slices, labels):
-        im = ax.imshow(sl.T, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax, aspect="equal")
-        if mask_overlay is not None:
-            overlay_slices = [
-                mask_overlay[mid[0], :, :],
-                mask_overlay[:, mid[1], :],
-                mask_overlay[:, :, mid[2]],
-            ]
-            ov = overlay_slices[labels.index(lbl)]
-            ax.contour(ov.T, levels=[0.5], colors="lime", linewidths=0.8, origin="lower")
-        ax.set_title(lbl, color="#e2e8f0", fontsize=9)
-        ax.axis("off")
-    fig.suptitle(title, color="#e2e8f0", fontsize=11, fontweight="bold")
-    cbar = fig.colorbar(im, ax=axes, fraction=0.02, pad=0.04)
-    cbar.ax.tick_params(colors="#94a3b8", labelsize=7)
-    fig.subplots_adjust(right=0.92, top=0.88)
-    buf = io.BytesIO()
-    fig.savefig(buf, format="png", dpi=120, facecolor=fig.get_facecolor())
-    plt.close(fig)
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("ascii")
-
-
-print("\n   Rendering slice images...")
-
-images = [
-    {
-        "title": "CBF Map",
-        "base64": _render_slice(cbf, "CBF Map (ml/100g/min)",
-                                cmap="RdBu_r", vmin=-10, vmax=80,
-                                mask_overlay=gm_mask.astype(float)),
-        "caption": "CBF with GM contour (green). Good contrast between GM (~60) and WM (~25).",
+images = generate_all_qc_images(
+    t1w=phantom.t1w,
+    cbf=cbf,
+    gm_prob=gm_prob,
+    wm_prob=wm_prob,
+    brain_mask=mask,
+    temporal_sd=temporal_sd,
+    motion_params=motion_params,
+    m0=m0,
+    cbf_gm_values=cbf[gm_mask],
+    hist_stats={
+        "percentile_5": hist.percentile_5,
+        "percentile_95": hist.percentile_95,
+        "skewness": hist.skewness,
+        "kurtosis": hist.kurtosis,
+        "caption_extra": "Tight distribution centred at ~60 ml/100g/min.",
     },
-    {
-        "title": "GM Mask",
-        "base64": _render_slice(gm_mask.astype(float), "Grey Matter Mask",
-                                cmap="Greens", vmin=0, vmax=1),
-        "caption": "Binary GM tissue mask used for QC metrics.",
-    },
-    {
-        "title": "WM Mask",
-        "base64": _render_slice(wm_mask.astype(float), "White Matter Mask",
-                                cmap="Blues", vmin=0, vmax=1),
-        "caption": "Binary WM tissue mask.",
-    },
-    {
-        "title": "Brain Mask",
-        "base64": _render_slice(mask.astype(float), "Brain Mask",
-                                cmap="Oranges", vmin=0, vmax=1),
-        "caption": "Full brain mask (GM + WM).",
-    },
-]
-
-# CBF histogram plot
-fig_hist, ax_hist = plt.subplots(figsize=(6, 3), facecolor="#1e293b")
-gm_vals = cbf[gm_mask]
-ax_hist.hist(gm_vals, bins=40, color="#6366f1", alpha=0.8, edgecolor="#334155")
-ax_hist.axvline(0, color="#ef4444", linestyle="--", linewidth=1.5, label="CBF = 0")
-ax_hist.axvline(hist.percentile_5, color="#f59e0b", linestyle=":", linewidth=1, label=f"P5 = {hist.percentile_5:.0f}")
-ax_hist.axvline(hist.percentile_95, color="#22c55e", linestyle=":", linewidth=1, label=f"P95 = {hist.percentile_95:.0f}")
-ax_hist.set_xlabel("CBF (ml/100g/min)", color="#e2e8f0", fontsize=9)
-ax_hist.set_ylabel("Voxel count", color="#e2e8f0", fontsize=9)
-ax_hist.set_title("GM CBF Histogram", color="#e2e8f0", fontsize=11, fontweight="bold")
-ax_hist.tick_params(colors="#94a3b8", labelsize=7)
-ax_hist.legend(fontsize=7, facecolor="#1e293b", edgecolor="#334155", labelcolor="#e2e8f0")
-for spine in ax_hist.spines.values():
-    spine.set_color("#334155")
-ax_hist.set_facecolor("#0f172a")
-fig_hist.tight_layout()
-buf_h = io.BytesIO()
-fig_hist.savefig(buf_h, format="png", dpi=120, facecolor=fig_hist.get_facecolor())
-plt.close(fig_hist)
-buf_h.seek(0)
-images.append({
-    "title": "GM CBF Histogram",
-    "base64": base64.b64encode(buf_h.read()).decode("ascii"),
-    "caption": f"Skewness={hist.skewness:.3f}, Kurtosis={hist.kurtosis:.3f}. "
-               f"Tight distribution centred at ~60 ml/100g/min.",
-})
+    cbf_vmin=-10,
+    cbf_vmax=80,
+)
 
 # Build data summary sections
 data_summary = [
@@ -257,12 +188,21 @@ data_summary = [
     {
         "title": "CBF Map Statistics",
         "rows": [
-            {"name": "GM CBF generation", "value": "60 ± 5 ml/100g/min"},
-            {"name": "WM CBF generation", "value": "25 ± 3 ml/100g/min"},
+            {"name": "GM CBF generation", "value": "60 +/- 3 ml/100g/min"},
+            {"name": "WM CBF generation", "value": "22 +/- 2 ml/100g/min"},
             {"name": "Measured mean GM CBF", "value": f"{mean_gm:.1f} ml/100g/min"},
             {"name": "Measured mean WM CBF", "value": f"{mean_wm:.1f} ml/100g/min"},
-            {"name": "GM/WM ratio", "value": f"{ratio:.2f} (expected 2.0–3.0)"},
+            {"name": "GM/WM ratio", "value": f"{ratio:.2f} (expected 2.0-3.0)"},
             {"name": "Negative GM voxel fraction", "value": f"{qei.negative_gm_fraction:.4f} ({qei.negative_gm_fraction*100:.1f}%)"},
+        ],
+    },
+    {
+        "title": "ExploreASL QC Reference Values",
+        "rows": [
+            {"name": "Expected GM CBF (PVC0)", "value": "~52 ml/100g/min"},
+            {"name": "Expected GM CBF (PVC2)", "value": "~65 ml/100g/min"},
+            {"name": "sCoV threshold", "value": "<= 0.42"},
+            {"name": "QEI threshold", "value": ">= 0.53"},
         ],
     },
     {

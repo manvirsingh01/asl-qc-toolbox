@@ -71,11 +71,11 @@ _HTML_TEMPLATE = Template("""\
     }
     .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
     .stat-label { font-size: .75rem; color: var(--text-muted); margin-top: .25rem; }
-    .image-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+    .image-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
     .image-panel { text-align: center; }
-    .image-panel img { width: 100%; border-radius: 8px; border: 1px solid var(--border); }
-    .image-panel .img-title { font-size: .85rem; font-weight: 600; margin-bottom: .5rem; color: var(--text); }
-    .image-panel .img-caption { font-size: .7rem; color: var(--text-muted); margin-top: .35rem; }
+    .image-panel img { width: 100%; max-width: 1200px; border-radius: 8px; border: 1px solid var(--border); image-rendering: high-quality; }
+    .image-panel .img-title { font-size: .95rem; font-weight: 600; margin-bottom: .5rem; color: var(--text); }
+    .image-panel .img-caption { font-size: .78rem; color: var(--text-muted); margin-top: .4rem; max-width: 900px; margin-left: auto; margin-right: auto; }
   </style>
 </head>
 <body>
@@ -137,7 +137,7 @@ _HTML_TEMPLATE = Template("""\
 
   {% if images %}
   <div class="card">
-    <h2>Image Slices</h2>
+    <h2>ExploreASL QC Image Panels</h2>
     <div class="image-grid">
       {% for img in images %}
       <div class="image-panel">
