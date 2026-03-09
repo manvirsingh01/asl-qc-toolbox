@@ -5,66 +5,54 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ASL QC Report — sub-demo</title>
   <style>
-    :root {
-      --bg: #0f172a; --surface: #1e293b; --border: #334155;
-      --text: #e2e8f0; --text-muted: #94a3b8;
-      --pass: #22c55e; --warn: #f59e0b; --fail: #ef4444;
-      --accent: #6366f1;
-    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      background: var(--bg); color: var(--text); padding: 2rem;
-      line-height: 1.6;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8f9fa; color: #212529; padding: 2rem;
+      line-height: 1.6; max-width: 960px; margin: 0 auto;
     }
-    h1 {
-      font-size: 1.75rem; font-weight: 700; margin-bottom: .25rem;
-      background: linear-gradient(135deg, var(--accent), #a855f7);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .subtitle { color: var(--text-muted); font-size: .875rem; margin-bottom: 2rem; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: .25rem; color: #212529; }
+    .subtitle { color: #6c757d; font-size: .85rem; margin-bottom: 1.5rem; }
     .card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;
+      background: #fff; border: 1px solid #dee2e6;
+      border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem;
     }
-    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--text); }
+    .card h2 { font-size: 1rem; margin-bottom: .75rem; color: #212529; }
+    .card h3 { font-size: .9rem; margin: 1rem 0 .5rem; color: #495057; }
     table { width: 100%; border-collapse: collapse; }
-    th, td {
-      padding: .6rem 1rem; text-align: left; border-bottom: 1px solid var(--border);
-      font-size: .875rem;
-    }
-    th { color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; font-size: .75rem; }
+    th, td { padding: .5rem .75rem; text-align: left; border-bottom: 1px solid #e9ecef; font-size: .85rem; }
+    th { color: #6c757d; font-weight: 600; font-size: .75rem; text-transform: uppercase; }
     .badge {
-      display: inline-block; padding: .15rem .6rem; border-radius: 9999px;
+      display: inline-block; padding: .2rem .5rem; border-radius: 4px;
       font-size: .75rem; font-weight: 600; text-transform: uppercase;
     }
-    .badge-pass { background: rgba(34,197,94,.15); color: var(--pass); }
-    .badge-fail { background: rgba(239,68,68,.15); color: var(--fail); }
-    .badge-warn { background: rgba(245,158,11,.15); color: var(--warn); }
+    .badge-pass { background: #d1e7dd; color: #0f5132; }
+    .badge-fail { background: #f8d7da; color: #842029; }
+    .badge-warn { background: #fff3cd; color: #664d03; }
     .overall {
-      font-size: 1.25rem; font-weight: 700; text-align: center; padding: 1rem;
-      border-radius: 8px; margin-bottom: 1.5rem;
+      font-size: 1.1rem; font-weight: 700; text-align: center; padding: .75rem;
+      border-radius: 6px; margin-bottom: 1.25rem;
     }
-    .overall-pass { background: rgba(34,197,94,.1); color: var(--pass); border: 1px solid var(--pass); }
-    .overall-fail { background: rgba(239,68,68,.1); color: var(--fail); border: 1px solid var(--fail); }
-    .meta { color: var(--text-muted); font-size: .75rem; }
-    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .overall-pass { background: #d1e7dd; color: #0f5132; }
+    .overall-fail { background: #f8d7da; color: #842029; }
+    .meta { color: #6c757d; font-size: .8rem; margin-bottom: .25rem; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; margin-bottom: 1.25rem; }
     .stat-card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 1rem; text-align: center;
+      background: #fff; border: 1px solid #dee2e6;
+      border-radius: 6px; padding: .75rem; text-align: center;
     }
-    .stat-val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
-    .stat-label { font-size: .75rem; color: var(--text-muted); margin-top: .25rem; }
-    .image-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
+    .stat-val { font-size: 1.25rem; font-weight: 700; color: #0d6efd; }
+    .stat-label { font-size: .75rem; color: #6c757d; margin-top: .15rem; }
+    .image-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
     .image-panel { text-align: center; }
-    .image-panel img { width: 100%; max-width: 1200px; border-radius: 8px; border: 1px solid var(--border); image-rendering: high-quality; }
-    .image-panel .img-title { font-size: .95rem; font-weight: 600; margin-bottom: .5rem; color: var(--text); }
-    .image-panel .img-caption { font-size: .78rem; color: var(--text-muted); margin-top: .4rem; max-width: 900px; margin-left: auto; margin-right: auto; }
+    .image-panel img { width: 100%; max-width: 900px; border-radius: 6px; border: 1px solid #dee2e6; }
+    .image-panel .img-title { font-size: .85rem; font-weight: 600; margin-bottom: .4rem; }
+    .image-panel .img-caption { font-size: .75rem; color: #6c757d; margin-top: .3rem; max-width: 700px; margin-left: auto; margin-right: auto; }
   </style>
 </head>
 <body>
   <h1>ASL Quality Control Report</h1>
-  <p class="subtitle">Subject: sub-demo &middot; Generated: 2026-03-08T19:45:30.787792</p>
+  <p class="subtitle">Subject: sub-demo &middot; Generated: 2026-03-09T10:03:14.398745</p>
 
   <div class="overall overall-pass">
     OVERALL PASS
@@ -261,7 +249,7 @@
   <div class="card">
     <h2>Input Data Summary</h2>
     
-    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">Synthetic Brain Geometry</h3>
+    <h3>Synthetic Brain Geometry</h3>
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
@@ -277,7 +265,7 @@
       </tbody>
     </table>
     
-    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">CBF Map Statistics</h3>
+    <h3>CBF Map Statistics</h3>
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
@@ -297,7 +285,7 @@
       </tbody>
     </table>
     
-    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">ExploreASL QC Reference Values</h3>
+    <h3>ExploreASL QC Reference Values</h3>
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
@@ -313,7 +301,7 @@
       </tbody>
     </table>
     
-    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">QEI Sub-Scores</h3>
+    <h3>QEI Sub-Scores</h3>
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
@@ -329,7 +317,7 @@
       </tbody>
     </table>
     
-    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">Histogram Analysis (GM)</h3>
+    <h3>Histogram Analysis (GM)</h3>
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
@@ -355,7 +343,7 @@
       </tbody>
     </table>
     
-    <h3 style="font-size:.95rem;margin:1rem 0 .5rem;color:var(--accent)">Simulated Acquisition Parameters</h3>
+    <h3>Simulated Acquisition Parameters</h3>
     <table>
       <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
       <tbody>
