@@ -1,4 +1,4 @@
-#  ASL QC Toolbox
+# ASL QC Toolbox
 
 **Automated Quality Control for Arterial Spin Labeling MRI**
   
@@ -7,7 +7,7 @@
 ## Get Started in 30 Seconds
 
 ```bash
-# Install
+# Install from source checkout (editable)
 pip install -e ".[dev]"
 
 # Run the demo (no MRI data needed!)
@@ -15,6 +15,22 @@ python run_demo.py
 ```
    
 That's it! The demo generates synthetic brain data and runs all QC metrics.
+
+Install in another environment (non-editable):
+
+```bash
+# In this repository, build a wheel
+python3 -m pip wheel . -w dist
+
+# Copy the wheel to the target environment, then install it there
+pip install /path/to/asl_qc_toolbox-*.whl
+```
+
+Quick runtime check after install:
+
+```bash
+asl-qc --help
+```
 
 ---
 

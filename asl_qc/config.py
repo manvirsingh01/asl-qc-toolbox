@@ -9,12 +9,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any, Dict, Optional
 
 import yaml
+from importlib.resources import files
 
-_DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "default_config.yaml"
+_DEFAULT_CONFIG_RESOURCE = files("asl_qc").joinpath("default_config.yaml")
 
 
 # ---------------------------------------------------------------------------
@@ -185,12 +185,12 @@ def load_config(user_config_path: Optional[str] = None) -> PipelineConfig:
         Fully merged configuration dataclass.
     """
     # Load defaults
-    with open(_DEFAULT_CONFIG_PATH, "r") as fh:
+    with _DEFAULT_CONFIG_RESOURCE.open("r", encoding="utf-8") as fh:
         base: Dict[str, Any] = yaml.safe_load(fh) or {}
 
     # Merge user overrides
     if user_config_path is not None:
-        with open(user_config_path, "r") as fh:
+        with open(user_config_path, "r", encoding="utf-8") as fh:
             overrides: Dict[str, Any] = yaml.safe_load(fh) or {}
         _deep_merge(base, overrides)
 

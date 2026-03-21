@@ -44,6 +44,9 @@ asl-qc = "asl_qc.cli:main"
 [tool.setuptools.packages.find]
 include = ["asl_qc*"]
 
+[tool.setuptools.package-data]
+asl_qc = ["default_config.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
