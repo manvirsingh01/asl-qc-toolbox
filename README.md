@@ -1,35 +1,54 @@
 # ASL QC Toolbox
 
 **Automated Quality Control for Arterial Spin Labeling MRI**
-  
+
 ---
 
-## Get Started in 30 Seconds
+## Install and Use on Another Machine (from GitHub)
+
+```bash
+# Install directly from GitHub
+pip install "git+https://github.com/manvirsingh01/asl-qc-toolbox.git@main"
+```
+
+After install:
+
+```bash
+# Check CLI is available
+asl-qc --help
+```
+
+Use in Python:
+
+```python
+from asl_qc.metrics.qei import compute_qei
+from asl_qc.metrics.scov import compute_scov
+```
+
+---
+
+## Get Started in 30 Seconds (local development)
 
 ```bash
 # Install from source checkout (editable)
 pip install -e ".[dev]"
 
 # Run the demo (no MRI data needed!)
-python run_demo.py  
+python run_demo.py
 ```
-   
+
 That's it! The demo generates synthetic brain data and runs all QC metrics.
 
-Install in another environment (non-editable):
+---
+
+## Alternative: Build Once, Install Anywhere
 
 ```bash
 # In this repository, build a wheel
 python3 -m pip wheel . -w dist
 
-# Copy the wheel to the target environment, then install it there
+# Copy dist/asl_qc_toolbox-*.whl to the target machine and install there
 pip install /path/to/asl_qc_toolbox-*.whl
-```
-
-Quick runtime check after install:
-
-```bash
-asl-qc --help
 ```
 
 ---
@@ -49,11 +68,11 @@ from asl_qc.thresholds.empirical import apply_empirical_thresholds
 # wm_mask = nib.load("wm.nii.gz").get_fdata() > 0.5
 
 # Compute metrics
-qei = compute_qei(cbf, gm_mask, wm_mask)      # → QEI score
-scov = compute_scov(cbf, gm_mask)              # → sCoV value
-hist = analyze_histogram(cbf, gm_mask)          # → skewness, kurtosis, etc.
+qei = compute_qei(cbf, gm_mask, wm_mask)
+scov = compute_scov(cbf, gm_mask)
+hist = analyze_histogram(cbf, gm_mask)
 
-# Check pass/fail against clinical thresholds
+# Check pass/fail against empirical thresholds
 result = apply_empirical_thresholds({
     "qei": qei.qei,
     "scov_gm": scov,
@@ -106,8 +125,8 @@ Generates JSON + HTML reports with traffic-light pass/fail summaries.
 ## Running Tests
 
 ```bash
-python -m pytest tests/ -v          # All 49 tests
-python -m pytest tests/test_qei.py  # Single module
+python -m pytest tests/ -v
+python -m pytest tests/test_qei.py
 ```
 
 ---
